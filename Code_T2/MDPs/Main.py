@@ -1,4 +1,5 @@
 import random, numpy, time
+import matplotlib.pyplot as plt 
 
 from Problems.CookieProblem import CookieProblem
 from Problems.GridProblem import GridProblem
@@ -51,6 +52,7 @@ def iterative_pol_general(param, discount, problem_type):
         problem = CookieProblem(param)
     else:
         problem = GamblerProblem(param)
+    ini_state = problem.get_initial_state()
     states = get_states(problem_type, param)
     for state in states:
         V[state] = 0
@@ -73,24 +75,21 @@ def iterative_pol_general(param, discount, problem_type):
                     sum_actions += (1 / (len(actions))) * sum_dynamics
                 V[state] = sum_actions
                 theta = max(theta, abs(V[state] - v))
-            else:
-                print(state)
-    return V, problem_type, counter, param
+    return V, problem_type, counter, param, ini_state
 
 def value_iteration(param, discount, problem_type):
     V = {}
     policy = {}
-    offset = 0 #explicar o preguntar jueves
     if problem_type == 0:
         problem = GridProblem(param)
-        offset = 1
     elif problem_type == 1:
         problem = CookieProblem(param)
     else:
         problem = GamblerProblem(param)
     states = get_states(problem_type, param)
+    ini_state = problem.get_initial_state()
     for state in states:
-        V[state] = 0 + param*param*offset
+        V[state] = 0
         policy[state] = None
     theta = 1
     counter = 0
@@ -103,7 +102,7 @@ def value_iteration(param, discount, problem_type):
                 v = V[state]
                 actions = problem.get_available_actions(state)
                 action_results = {}
-                max_V = 0
+                max_V = float('-inf')
                 for action in actions:
                     transitions = problem.get_transitions(state, action)
                     sum_dynamics = 0
@@ -115,12 +114,7 @@ def value_iteration(param, discount, problem_type):
                 policy[state] = argmax(action_results)
                 V[state] = max_V
                 theta = max(theta, abs(V[state] - v))
-    show_policy(policy, problem_type, param)
-
-    if offset == 1:
-        for state, value in V.items():
-            V[state] = value-param*param*offset
-    return V, problem_type, counter, param
+    return V, problem_type, counter, param, ini_state
 
 
 def get_states(problem, param):
@@ -237,103 +231,107 @@ def play_cookie_problem():
     problem = CookieProblem(size)
     play(problem)
 
+def pregunta_d():
+    grid_sizes = [3, 4, 5, 6, 7, 8, 9, 10]
+    discount = 1
+    for size in grid_sizes:
+        start_time = time.time()
+        V, problem_type, counter, param, ini_state = iterative_pol_general(size, discount, 0)
+        end_time = time.time()
+        print(f"Grid size: {size}x{size}, Time taken: {end_time - start_time:.3f} seconds, value on inicial state: {V[ini_state]:.3f}")
+
+    cookie_grid_sizes = [3, 4, 5, 6, 7, 8, 9, 10]
+    discount = 0.99
+    for size in grid_sizes:
+        start_time = time.time()
+        V, problem_type, counter, param, ini_state = iterative_pol_general(size, discount, 1)
+        end_time = time.time()
+        print(f"Cookie Grid size: {size}x{size}, Time taken: {end_time - start_time:.3f} seconds, value on inicial state: {V[ini_state]:.3f}")
+
+    param_prob = [0.25, 0.4, 0.55]
+    discount = 1
+    for param in param_prob:
+        start_time = time.time()
+        V, problem_type, counter, param, ini_state = iterative_pol_general(param, discount, 2)
+        end_time = time.time()
+        print(f"Prob: {param}, Time taken: {end_time - start_time:.3f} seconds, value on inicial state: {V[ini_state]:.3f}")
+
+def pregunta_h():
+    grid_sizes = [3, 4, 5, 6, 7, 8, 9, 10]
+    discount = 1
+    for size in grid_sizes:
+        start_time = time.time()
+        V, problem_type, counter, param, ini_state = value_iteration(size, discount, 0)
+        end_time = time.time()
+        print(f"Grid size: {size}x{size}, Time taken: {end_time - start_time:.3f} seconds, value on inicial state: {V[ini_state]:.3f}")
+    cookie_grid_sizes = [3, 4, 5, 6, 7, 8, 9, 10]
+    discount = 0.99
+    for size in grid_sizes:
+        start_time = time.time()
+        V, problem_type, counter, param, ini_state = value_iteration(size, discount, 1)
+        end_time = time.time()
+        print(f"Cookie Grid size: {size}x{size}, Time taken: {end_time - start_time:.3f} seconds, value on inicial state: {V[ini_state]:.3f}")
+    param_prob = [0.25, 0.4, 0.55]
+    discount = 1
+    for param in param_prob:
+        start_time = time.time()
+        V, problem_type, counter, param, ini_state = value_iteration(param, discount, 2)
+        end_time = time.time()
+        print(f"Prob: {param}, Time taken: {end_time - start_time:.3f} seconds, value on inicial state: {V[ini_state]:.3f}")
+
+def pregunta_g():
+    pass 
+
+def pregunta_i():
+    param_prob = [0.25, 0.4, 0.55]
+    discount = 1
+    for param in param_prob:
+        problem = GamblerProblem(param)
+        start_time = time.time()
+        V, problem_type, counter, param, ini_state = value_iteration(param, discount, 2)
+        end_time = time.time()
+        states = get_states(2, param)
+        optimal_actions = {}
+        for state in states:
+            skip = problem.is_terminal(state)
+            if not skip:
+                optimal_actions_state = []
+                actions = problem.get_available_actions(state)
+                q_sa = {}
+                for action in actions:
+                    transitions = problem.get_transitions(state, action)
+                    value_action_state = 0
+                    for prob, s_next, reward in transitions:
+                        value_action_state += prob * (reward + discount * V[s_next])
+                    q_sa[action] = round(value_action_state, 5)
+                max_q = max(q_sa.values())
+                for action, value in q_sa.items():
+                    if value == max_q:
+                        optimal_actions_state.append(action)
+                optimal_actions[state] = optimal_actions_state
+        x_plot = []
+        y_plot = []
+        for state, actions in optimal_actions.items():
+            for action in actions:
+                x_plot.append(state)
+                y_plot.append(action)
+
+        plt.figure()
+        plt.scatter(x_plot, y_plot, s=10)
+        #arreglar titutlo
+        plt.title(f'Optimal Actions  (p={param})')
+        plt.xlabel('State')
+        plt.ylabel('Optimal Action')
+        plt.grid(True)
+        plt.show()        
+
+            
+
+        
+
+
+
+
 
 if __name__ == '__main__':
-    param = 0.4
-    discount = 1
-    problem_type = 2
-    V, prob, counter, param = value_iteration(param, discount, problem_type)
-    show_value_function_matrix(V, prob, counter, param )
-    #greedy_policy_value = greedy_policy(param, discount, problem_type, V)
-    #print(greedy_policy_value)
-    #show_policy(greedy_policy_value, prob, param)
-    #show_value_function_matrix(V, prob, counter, param )
-
-
-
-'''
-def iterative_pol_grid(size, discount):
-    problem = GridProblem(size)
-    V = numpy.zeros(size*size)
-    state = problem.get_initial_state()
-    theta = 1
-    counter = 0
-    while theta > 0.0000000001:
-        theta = 0
-        counter += 1
-        for i in range(size*size):
-            skip = problem.is_terminal(i)
-            if not skip:
-                state = i
-                v = V[i]
-                actions = problem.get_available_actions(state)
-                sum_actions = 0
-                for action in actions:
-                    transitions = problem.get_transitions(state, action)
-                    sum_dynamics = 0
-                    for prob, s_next, reward in transitions:
-                        sum_dynamics += prob*(reward+discount*V[s_next])
-                    sum_actions += (1/(len(actions)))*sum_dynamics
-                V[i] = sum_actions
-                theta = max(theta, abs(V[i]-v))
-
-    value_matrix = numpy.reshape(V, (size, size))
-    print("Value Function Matrix:")
-    for row in value_matrix:
-        print(row)
-    print(counter)
-
-def iterative_pol_cookie(size, discount):
-    problem = CookieProblem(size)
-    V = numpy.zeros((size*size,size*size))
-    theta = 1
-    counter = 0
-    while theta > 0.0000000001:
-        theta = 0
-        counter += 1
-        for i in range(size*size):
-            for j in range(size*size):
-                skip = False
-                if not skip:
-                    state = (i,j)
-                    v = V[i][j]
-                    actions = problem.get_available_actions(state)
-                    sum_actions = 0
-                    for action in actions:
-                        transitions = problem.get_transitions(state, action)
-                        sum_dynamics = 0
-                        for prob, s_next, reward in transitions:
-                            sum_dynamics += prob*(reward+discount*V[s_next[0]][s_next[1]])
-                        sum_actions += (1/(len(actions)))*sum_dynamics
-                    V[i][j] = sum_actions
-                    theta = max(theta, abs(V[i][j]-v))
-
-
-def iterative_pol_gamble(p, discount):
-    problem = GamblerProblem(p)
-    V = numpy.zeros((101))
-    theta = 1
-    counter = 0
-    while theta > 0.0000000001:
-        theta = 0
-        counter += 1
-        for i in range(100):
-            skip = i == 100 or i == 0
-            if not skip:
-                state = i
-                v = V[i]
-                actions = problem.get_available_actions(state)
-                sum_actions = 0
-                for action in actions:
-                    transitions = problem.get_transitions(state, action)
-                    sum_dynamics = 0
-                    for prob, s_next, reward in transitions:
-                        sum_dynamics += prob*(reward+discount*V[s_next])
-                    sum_actions += (1/(len(actions)))*sum_dynamics
-                V[i] = sum_actions
-                theta = max(theta, abs(V[i]-v))
-
-
-
-
-'''
+    pregunta_h()

@@ -1,6 +1,7 @@
 from Environments.BlackjackEnv import BlackjackEnv
-from Environments.CliffEnv import CliffEnv
-import random
+from Environments.CliffEnv import CliffEnv, CliffVisualizer
+import random, time
+import matplotlib.pyplot as plt
 
 
 def get_action_from_user(actions):
@@ -62,7 +63,7 @@ def initialize_env(env_type, param=None):
         Q_sa[state] = {}
         N_sa[state] = {}
         for action in actions:
-            Q_sa[state][action] = 0.0
+            Q_sa[state][action] = 0
             N_sa[state][action] = 0.0
     return env, states, policy, Q_sa, N_sa, actions
 
@@ -94,49 +95,85 @@ def best_action_for_state(Q_sa, state, actions):
     for action in actions:
         action_values[action] = Q_sa[state][action]
     best_action = argmax(action_values)
+
     return best_action
 
 
 
 def MC_control_every_visit(env_type, epsilon, discount, n_episodes, param=None):
     env, states, policy, Q_sa, N_sa, actions = initialize_env(env_type)
+    counter = 1
+    results = []
+    first = True
+    if env_type == 0:
+        plot_every = 5*10**5
+    else:
+        plot_every = 10**3
     for episode in range(n_episodes):
         trace = generate_episode(env, policy, actions, epsilon)
         G = 0
-        print(trace)
+        #print(trace)
         for state, action, reward in trace:
+            #print(f"State: {state}, Action: {action}, Reward: {reward}, G: {G}")
             G = G*discount + reward
             N_sa[state][action] += 1
             Q_sa[state][action] += (G-Q_sa[state][action])/N_sa[state][action]
             policy[state] = best_action_for_state(Q_sa, state, actions)
-    print(Q_sa)
+        if counter == plot_every or first:
+            if env_type == 0:
+                results.append([agent_play_blackjack(policy), episode])
+            else:
+                results.append([agent_play_cliff(policy), episode])
+            counter = 1
+            first = False
+        else:
+            counter += 1
+    #plot result
+    if env_type == 0:
+        title = "Blackjack"
+    else:
+        title = "Cliff"
+
+    returns, episodes = zip(*results)
+    plt.plot(episodes, returns, marker='o')
+    plt.xlabel('Episodes')
+    plt.ylabel('Average Return')
+    plt.title('Monte Carlo:' + title)
+    plt.grid(True)
+    plt.show()
+
+
     return policy
 
 def agent_play_blackjack(policy):
     env = BlackjackEnv()
-    performance = 0
-    tie_pcg = 0
-    for i in range(10000000):
+    avg_return = 0
+    for i in range(10**5):
         actions = env.action_space
         state = env.reset()
         total_reward = 0.0
         done = False
         while not done:
             action = policy[state]#random.choice(actions)
-            print(state)
             state, reward, done = env.step(action)
             total_reward += reward
-        env.show()
-        print("Done.")
-        if total_reward == -1:
-            total_reward = 0
-        elif total_reward == 0:
-            tie_pcg += 1
-        performance += total_reward
-    print(f"Total reward: {performance/100000}%")
-    print(f"Tie pcg: {tie_pcg/1000}%")
+        avg_return += total_reward/10**5
+    return avg_return
 
-
+def agent_play_cliff(policy, cliff_width=6):
+    env = CliffEnv(cliff_width)
+    avg_return = 0
+    for i in range(1):
+        actions = env.action_space
+        state = env.reset()
+        total_reward = 0.0
+        done = False
+        while not done:
+            action = policy[state]#random.choice(actions)
+            state, reward, done = env.step(action)
+            total_reward += reward
+        avg_return += total_reward/1
+    return avg_return
     
 def play_blackjack():
     env = BlackjackEnv()
@@ -148,11 +185,17 @@ def play_cliff():
     env = CliffEnv(cliff_width)
     play(env)
 
+def pregunta_j_blackjack():
+    for i in range(5):
+        policy = MC_control_every_visit(0, 0.01, 1, 10**7)
+        
+def pregunta_j_cliff():
+    for i in range(5):
+        policy = MC_control_every_visit(1, 0.1, 1, 2*10**5)
 
 if __name__ == '__main__':
     #play_blackjack()
     #play_cliff()
-    policy = MC_control_every_visit(1, 0.5, 1, 100)
-    print(policy)
-    #agent_play_blackjack(policy)
-#-3927.0
+
+    pregunta_j_cliff()
+
